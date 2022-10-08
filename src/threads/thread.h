@@ -27,10 +27,14 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
-#define STILL_ALIVE 2                   /* thread still alive */
+/* modified code */
+/* setting thread status */  
+#define STILL_ALIVE 2                   /* thread is still alive */
 #define WAS_KILLED 0                    /* thread was killed */
 #define HAD_EXITED 1                    /* thread had exited */
 #define INIT_STATUS -100            /* initial current status*/
+/* modified code */
+
 
 /* A kernel thread or user process.
 
@@ -100,23 +104,20 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+   /* modifed code */ 
 
-
-
-    /**Phase 2**/
-
-    /*file file descriptors*/
+    /*file descriptors*/
     struct list fd_list; 				/*list of file descriptors*/
-    int fd_size;						/*size of the file descriptors*/
+    int fd_size;						   /*size of the file descriptors*/
 
     /*exectable file should not edited while running*/
     struct file *exec_file;				/*execeted file held by this thread*/
 
     /*execute and wait*/
-    struct semaphore sema_exec;     /*parent wait child to load*/
-    struct semaphore sema_wait;     /*current thread wait pid child to exit*/
-    struct list child_list;         /*lsit of children this thread have*/
-    struct thread * parent;         /*pointer to this thread's dad*/
+    struct semaphore sema_exec;     /*for parent threads waiting for a child to load*/
+    struct semaphore sema_wait;     /*current thread waiting for a child with the given pid to exit*/
+    struct list child_list;         /*list of children of the given thread*/
+    struct thread * parent;         /*pointer to the thread's parent*/
 
 
 #ifdef USERPROG
@@ -128,16 +129,17 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
 };
 
-
+/* modified code */ 
+/* defining the child element structure */ 
 struct child_element
 {
-    struct list_elem child_elem;    /*list elem used to add in child_list */
-    struct thread * real_child;     /*pointer to the real thread child*/
-    int exit_status;                /*the status the child thread exit with*/
-    int cur_status;                 /*the child thread current status*/
-    int child_pid;                  /*pid of this child*/
-    bool first_time;                /*to check if wait() is called before?*/
-    bool loaded_success;            /*to check if load success*/
+    struct list_elem child_elem;    /* inorder to add the child into the child_elem */
+    struct thread * real_child;     /* pointer to the real child */
+    int exit_status;                /* the exit status of the child thread */
+    int cur_status;                 /* the child thread's current status */
+    int child_pid;                  /* pid of the given child thread */
+    bool first_time;                /* to check if wait() was called before  */
+    bool loaded_success;            /* to check if load is successful */
 };
 
 /* If false (default), use round-robin scheduler.

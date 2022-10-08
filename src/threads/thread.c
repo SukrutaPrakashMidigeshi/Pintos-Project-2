@@ -71,7 +71,9 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
+/* modified code */ 
 struct child_element* create_child(struct thread *t);
+/* modified code */ 
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -101,8 +103,12 @@ thread_init (void)
     initial_thread->status = THREAD_RUNNING;
     initial_thread->tid = allocate_tid ();
 
-    /*make the parent of the intialize thread refrrence to be null*/
+    /* modified code */
+
+    /* initialising the initial_threads parent to NULL*/
     initial_thread->parent = NULL;
+
+    /* modified code */
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -189,12 +195,16 @@ thread_create (const char *name, int priority,
     init_thread (t, name, priority);
     tid = t->tid = allocate_tid ();
 
-    /*Create and Initialize Child Element*/
+    /* modified code */ 
+
+    /*Create and initialize the child element*/
     struct child_element *child = create_child(t);
     list_push_back(&thread_current()->child_list, &child->child_elem);
     t->parent = thread_current();
 
     old_level = intr_disable ();
+
+    /* modified code */ 
 
     /* Stack frame for kernel_thread(). */
     kf = alloc_frame (t, sizeof *kf);
@@ -219,10 +229,9 @@ thread_create (const char *name, int priority,
     return tid;
 }
 
-/**
-create and init new child
-retuen the created child
-*/
+/* modified Code */ 
+
+/* create and initialize a new child and return the created child */
 struct child_element*
 create_child(struct thread *t)
 {
@@ -235,8 +244,9 @@ create_child(struct thread *t)
     child -> cur_status = STILL_ALIVE;
 }
 
-/* Searches for the thread with tid  = TID and
-   returns it if found, or NULL otherwise. */
+/* Searches for the thread with the given tid and returns it
+   return NULL if the thread is not found */
+
 struct thread *
 thread_get (tid_t tid)
 {
@@ -257,6 +267,8 @@ thread_get (tid_t tid)
 
     return NULL;
 }
+
+/* modified Code */ 
 
 /* Puts the current thread to sleep.  It will not be scheduled
    again until awoken by thread_unblock().
@@ -295,6 +307,7 @@ thread_unblock (struct thread *t)
     t->status = THREAD_READY;
     intr_set_level (old_level);
 }
+
 
 /* Returns the name of the running thread. */
 const char *
@@ -439,6 +452,8 @@ thread_get_recent_cpu (void)
    blocks.  After that, the idle thread never appears in the
    ready list.  It is returned by next_thread_to_run() as a
    special case when the ready list is empty. */
+
+
 static void
 idle (void *idle_started_ UNUSED)
 {
@@ -517,9 +532,8 @@ init_thread (struct thread *t, const char *name, int priority)
 
 
 
-    /*init file descriptors list */
+    /* initialising the file discriptors list */
     list_init(&t->fd_list);
-    /*note that 0 1 is not faild so start from 2*/
     t->fd_size = 1;
     t->exec_file = NULL;
     list_init(&t->child_list);

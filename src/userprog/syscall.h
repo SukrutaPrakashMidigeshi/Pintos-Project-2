@@ -1,13 +1,14 @@
 #ifndef USERPROG_SYSCALL_H
 #define USERPROG_SYSCALL_H
 
+/* modified Code */
 #include <stdbool.h>
 #include "threads/thread.h"
 #include <list.h>
 #include "threads/synch.h"
 
 
-struct lock file_lock;       /*lock an unlock access file with multi thread*/
+struct lock lock_file;       /*lock an unlock access file with multi thread*/
 
 struct fd_element
 {
@@ -16,7 +17,7 @@ struct fd_element
     struct list_elem element;      /*list elem to add fd_element in fd_list*/
 };
 
-
+/* initialising the system calls */
 void syscall_init (void);
 void halt (void);
 void exit (int status);
@@ -34,6 +35,10 @@ void close (int fd);
 
 void close_all(struct list * fd_list);
 struct child_element* get_child(tid_t tid,struct list *mylist);
+
+
+/* modified Code */
+
 
 
 #endif /* userprog/syscall.h */

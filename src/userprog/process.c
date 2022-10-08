@@ -18,13 +18,18 @@
 #include "threads/malloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+
+/* modified code */
 #include "userprog/syscall.h"
+void child_free(struct list *child_list);
+/* modified code */
 
-
-void free_children(struct list *child_list);
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
-static void get_stack_args(char *file_name, void **esp, char **save_ptr);
+
+/* modified code */
+static void stack_get_arg(char *file_name, void **esp, char **save_ptr);
+/* modified code */
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -34,15 +39,19 @@ tid_t
 process_execute (const char *file_name)
 {
     char *fn_copy;
+
+    /* modified code */
     char *save_ptr;
     char *name;
+    /* modified code */
+
     tid_t tid;
-
-
-
+    
+    /* modified code */
     name = malloc(strlen(file_name)+1);
     strlcpy (name, file_name, strlen(file_name)+1);
     name = strtok_r (name," ",&save_ptr);
+    /* modified code */
 
     /* Make a copy of FILE_NAME.
         Otherwise there's a race between the caller and load(). */
@@ -77,18 +86,18 @@ start_process (void *file_name_)
     if_.eflags = FLAG_IF | FLAG_MBS;
     success = load (file_name, &if_.eip, &if_.esp);
 
-    // if this thread have a parent
+    /* Incase the thread has a parent process */
     if(thread_current()->parent != NULL)
     {
-        // get this thread as a child
+        /* set the status of the child process */
         struct child_element *child = get_child(thread_current() -> tid, &thread_current()->parent->child_list);
-        // setting the load status
         child ->loaded_success = success;
     }
-    // wake up my parent which wait me to load successfully
+    /* wake up any parent process that is waiting for this process to execute */
     sema_up(&thread_current() -> sema_exec);
+    /* modified code  */
 
-    //free file name
+    /* If load failed, quit. */
     palloc_free_page(file_name);
     if (!success)
     {
@@ -116,22 +125,28 @@ start_process (void *file_name_)
 int
 process_wait (tid_t tid)
 {
-    //get my child which have this tid
+    /* modified Code */
+    
+    /* fetch the child with the respective process ID */
     struct child_element *child = get_child(tid, &thread_current()-> child_list);
-    // check if this is the 1st call of child
+
+    /* check if it is the first time the child is called */
     if(child -> first_time)
     {
-        //mark that child was called before
+        /* mark that the child has been called before */
         child -> first_time = false;
-        //check if this child is still alive
+        
+        /* check if the child is alive */ 
         if(child -> cur_status == STILL_ALIVE)
         {
-            // make the current thread wait this child
+            /* put the parent in the sema_wait list */
             sema_down(&(child -> real_child -> sema_wait));
         }
-        //after wake up, return the exit status
+        /* return the exit status after the child process has finished */
         return child-> exit_status;
     }
+    /* modified Code */
+
     return -1;
 }
 
@@ -142,43 +157,48 @@ process_exit (void)
     struct thread *cur = thread_current();
     uint32_t *pd;
 
-    // if this thread have a parent
+    /* modified code */
+
+    /* check if the process has a parent */
     if(thread_current()->parent != NULL)
     {
-        // get this thread as a child
+        /* get this thread as a child */
+
         struct child_element *child = get_child(thread_current() -> tid, &thread_current()->parent->child_list);
-        // if this thread is still alive
+        /* in case the thread is still alive */
+
         if(child -> cur_status == STILL_ALIVE)
         {
-            // this thread had been killed
+            /* set the right status */
             child -> cur_status = WAS_KILLED;
             child -> exit_status = -1;
         }
     }
 
-    // wake up my parent which wait my lock
+    /* wake up a parent wating for the child process */
     sema_up(&thread_current()->sema_wait);
 
-    //Free my Children
-    free_children(&thread_current()->child_list);
+    /* free all the children of the thread */ 
+    child_free(&thread_current()->child_list);
 
-    // lose my parent
+    /* disconnect from the parent */ 
     thread_current()->parent = NULL;
 
-    // allow other threads to use my executable file
+    /* free the executable file */ 
     if (cur -> exec_file != NULL)
     {
         file_allow_write(cur -> exec_file);
     }
-
-    // close my executable file
     file_close(cur->exec_file);
 
-    //close all file the current thread have
+    /* close all the files that the thread used */ 
     close_all(&cur->fd_list);
 
     /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
+
+    /* modified code */
+
     pd = cur->pagedir;
     if (pd != NULL)
     {
@@ -195,11 +215,10 @@ process_exit (void)
     }
 }
 
-/**
-free all the children in the child_list
-*/
+/* modified Code */ 
+/* free all the children in the parent processes child list */
 void
-free_children(struct list *child_list)
+child_free(struct list *child_list)
 {
     struct list_elem* e1 = list_begin(child_list);
     while(e1!=list_end(child_list))
@@ -211,6 +230,7 @@ free_children(struct list *child_list)
         e1 = next;
     }
 }
+/* modified Code */ 
 
 /* Sets up the CPU for running user code in the current
    thread.
@@ -304,16 +324,17 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 bool
 load (const char *file_name, void (**eip) (void), void **esp)
 {
-// printf ("hello from load\n");
     struct thread *t = thread_current ();
     struct Elf32_Ehdr ehdr;
     struct file *file = NULL;
     off_t file_ofs;
     bool success = false;
     int i;
-    /*stack arguments*/
+    /* modified Code */ 
+    /*variables for the stack */
     char *fn_copy;
     char *save_ptr;
+    /* modified Code */ 
 
     /* Allocate and activate page directory. */
     t->pagedir = pagedir_create ();
@@ -321,11 +342,12 @@ load (const char *file_name, void (**eip) (void), void **esp)
         goto done;
     process_activate ();
 
-
+    /* modified Code */ 
     int name_length = strlen (file_name)+1;
     fn_copy = malloc (name_length);
     strlcpy(fn_copy, file_name, name_length);
     fn_copy = strtok_r (fn_copy, " ", &save_ptr);
+    /* modified Code */ 
 
     file = filesys_open (fn_copy);
 
@@ -410,7 +432,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     /* Set up stack. */
     if (!setup_stack (esp))
         goto done;
-    get_stack_args (fn_copy, esp, &save_ptr);
+    stack_get_arg (fn_copy, esp, &save_ptr);
     //palloc_free_page (fn_copy);
     free(fn_copy);
 
@@ -430,9 +452,11 @@ done:
     else file_close (file);
     return success;
 }
-/*get stack arguments*/
+
+/* modified Code */
+/*fetch stack arguements */
 static
-void get_stack_args(char *file_name, void **esp, char **save_ptr)
+void stack_get_arg(char *file_name, void **esp, char **save_ptr)
 {
 
     char *token = file_name;
@@ -484,7 +508,7 @@ void get_stack_args(char *file_name, void **esp, char **save_ptr)
         args_pointer += (strlen(args_pointer) + 1);
     }
 
-    /*adding char** */
+    /*adding char*/
     char ** first_fetch = (char **) stack_pointer;
     stack_pointer -= sizeof(char **);
     *((char ***) stack_pointer) = first_fetch;
@@ -498,7 +522,10 @@ void get_stack_args(char *file_name, void **esp, char **save_ptr)
     *(int *) (stack_pointer) = 0;
     *esp = stack_pointer;
 }
-
+
+/* modified Code */ 
+
+
 /* load() helpers. */
 
 static bool install_page (void *upage, void *kpage, bool writable);
